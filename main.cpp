@@ -32,17 +32,32 @@ int main(int, char**) {
         Brezenhem(edges, 0, 0, 160, 479, n, curs);
         imshow("edges", edges);
         char c = cvWaitKey(33);
+
         switch (c) {
+                // escape    
             case 27:
                 isRun = !isRun;
+                break;
+                // left    
+            case 81:
+                if (curs == 0) {
+                    curs = n;
+                }
+                curs--;
+                break;
+                // right
+            case 83:
+                if (curs == (n - 1)) {
+                    curs = -1; // жесткий костыль :) 
+                }
+                curs++;
                 break;
         }
     }
 
     //Очищаем ресурсы
-    cvReleaseCapture(&cap);
     cvDestroyWindow("edges");
-    
+
     return 0;
 }
 
