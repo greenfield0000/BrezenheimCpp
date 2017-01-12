@@ -3,36 +3,55 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <opencv2/core/internal.hpp>
+#include <opencv2/imgproc/imgproc_c.h>
+#include <opencv2/legacy/compat.hpp>
 
 #define CV_CAP_ANY 0 // autodetect
 
 using namespace cv;
 using namespace std;
 
-void Brezenhem(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs);
+void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs);
 
 int main(int, char**) {
     int x0, y0, x1, y1, x, y, curs = 0, n = 5;
-
     bool isRun = TRUE;
+    // количество бинов гистограммы 
+    int countBins = 256;
+    // интервал изменения значений бинов 
+    float range[] = {0.0f, 256.0f};
+    const float* histRange = {range};
+    // равномерное распределение интервала по бинам 
+    bool uniform = true;
+    // запрет очищения перед вычислением гистограммы 
+    bool accumulate = false;
+
 
     VideoCapture cap(0); // open the default camera
     if (!cap.isOpened()) // check if we succeeded
         return -1;
 
     Mat edges;
-    namedWindow("edges", 1);
+    namedWindow("edges", CV_WINDOW_AUTOSIZE);
 
     while (isRun) {
-        Mat frame;
+        Mat frame, frameGistogram;
         cap >> frame; // get a new frame from camera
         cvtColor(frame, edges, CV_8UC1); //COLOR_BGR2GRAY
 
-        // Рисуем линии Брезенхейма и показываем кадр
-        Brezenhem(edges, 0, 0, 160, 479, n, curs);
-        imshow("edges", edges);
-        char c = cvWaitKey(33);
+        frameGistogram = frame.clone();
+        cvtColor(frameGistogram, frameGistogram, COLOR_BGR2GRAY);
 
+        //Нужно трешхолдить с хорошим порогом
+//        cvThreshold(&frameGistogram, &frameGistogram, 50.0, 250.0, CV_THRESH_BINARY);
+
+        // Рисуем линии Брезенхейма и показываем кадр
+        BrezenhemPainLines(edges, 0, 0, 160, 479, n, curs);
+        imshow("edges", edges);
+        imshow("edges1", frameGistogram);
+        //        imshow("edges1", frameGistogram);
+
+        char c = cvWaitKey(33);
         switch (c) {
                 // escape    
             case 27:
@@ -56,13 +75,13 @@ int main(int, char**) {
     }
 
     //Очищаем ресурсы
-    cvDestroyWindow("edges");
+    cvDestroyAllWindows();
 
     return 0;
 }
 
-void Brezenhem(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs) {
-    int x, y, color = 0;
+void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs) {
+    int x, y, color = 1;
     // x = 640 y = 480
 
     for (int i = 0; i < n; i++) {
