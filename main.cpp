@@ -33,6 +33,7 @@ int main(int, char**) {
 
     Mat edges;
     namedWindow("edges", CV_WINDOW_AUTOSIZE);
+    namedWindow("greyWindow", CV_WINDOW_AUTOSIZE);
 
     while (isRun) {
         Mat frame, frameGistogram;
@@ -43,13 +44,12 @@ int main(int, char**) {
         cvtColor(frameGistogram, frameGistogram, COLOR_BGR2GRAY);
 
         //Нужно трешхолдить с хорошим порогом
-//        cvThreshold(&frameGistogram, &frameGistogram, 50.0, 250.0, CV_THRESH_BINARY);
+        //        cvThreshold(&frameGistogram, &frameGistogram, 50.0, 250.0, CV_THRESH_BINARY);
 
         // Рисуем линии Брезенхейма и показываем кадр
-        BrezenhemPainLines(edges, 0, 0, 160, 479, n, curs);
+        BrezenhemPainLines(frameGistogram, 0, 0, 160, 479, n, curs);
         imshow("edges", edges);
-        imshow("edges1", frameGistogram);
-        //        imshow("edges1", frameGistogram);
+        imshow("greyWindow", frameGistogram);
 
         char c = cvWaitKey(33);
         switch (c) {
@@ -80,11 +80,11 @@ int main(int, char**) {
     return 0;
 }
 
-void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs) {
+void BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int n, int curs) {
     int x, y, color = 1;
     // x = 640 y = 480
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n - 1; i++) {
         if (curs == i) color = 255;
         int A, B, sign;
         A = y1 - y0;
@@ -102,9 +102,7 @@ void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int c
 
         int f = 0;
 
-        edges.at<Vec3b>(y0, x0)[0] = color;
-        edges.at<Vec3b>(y0, x0)[1] = color;
-        edges.at<Vec3b>(y0, x0)[2] = color;
+        frameGistogram.at<unsigned char>(y0, x0) = color;
 
         x = x0, y = y0;
         if (sign == -1) {
@@ -115,9 +113,7 @@ void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int c
                     y += signa;
                 }
                 x -= signb;
-                edges.at<Vec3b>(y, x)[0] = color;
-                edges.at<Vec3b>(y, x)[1] = color;
-                edges.at<Vec3b>(y, x)[2] = color;
+                frameGistogram.at<unsigned char>(y, x) = color;
             } while (x != x1 || y != y1);
         } else {
             do {
@@ -127,9 +123,7 @@ void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int c
                     x -= signb;
                 }
                 y += signa;
-                edges.at<Vec3b>(y, x)[0] = color;
-                edges.at<Vec3b>(y, x)[1] = color;
-                edges.at<Vec3b>(y, x)[2] = color;
+                frameGistogram.at<unsigned char>(y, x) = color;
             } while (x != x1 || y != y1);
         }
         x0 += 160;
