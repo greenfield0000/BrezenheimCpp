@@ -11,29 +11,26 @@
 using namespace cv;
 using namespace std;
 
-void BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs);
+IplImage* BrezenhemPainLines(Mat edges, int x0, int y0, int x1, int y1, int n, int curs);
 
 int main(int, char**) {
     int x0, y0, x1, y1, x, y, curs = 0, n = 5;
     bool isRun = TRUE;
-    // количество бинов гистограммы 
-    int countBins = 256;
-    // интервал изменения значений бинов 
-    float range[] = {0.0f, 256.0f};
-    const float* histRange = {range};
-    // равномерное распределение интервала по бинам 
+    //кол-во ячеек
+    int numBins = 256;
+    float range[] = {0, 255};
+    float *ranges[] = {range};
     bool uniform = true;
     // запрет очищения перед вычислением гистограммы 
     bool accumulate = false;
-
+    // штука, которая будет строить гистограмму 
+    CvHistogram* histogram;
 
     VideoCapture cap(0); // open the default camera
     if (!cap.isOpened()) // check if we succeeded
         return -1;
 
     Mat edges;
-    namedWindow("edges", CV_WINDOW_AUTOSIZE);
-    namedWindow("greyWindow", CV_WINDOW_AUTOSIZE);
 
     while (isRun) {
         Mat frame, frameGistogram;
@@ -42,14 +39,39 @@ int main(int, char**) {
 
         frameGistogram = frame.clone();
         cvtColor(frameGistogram, frameGistogram, COLOR_BGR2GRAY);
+        namedWindow("Gray", 1);
+        imshow("Gray", frameGistogram);
 
-        //Нужно трешхолдить с хорошим порогом
-        //        cvThreshold(&frameGistogram, &frameGistogram, 50.0, 250.0, CV_THRESH_BINARY);
+        // Initialize parameters
+        int histSize = 256; // bin size
+        float range[] = {0, 255};
+        const float *ranges[] = {range};
 
-        // Рисуем линии Брезенхейма и показываем кадр
-        BrezenhemPainLines(frameGistogram, 0, 0, 160, 479, n, curs);
-        imshow("edges", edges);
-        imshow("greyWindow", frameGistogram);
+        // Calculate histogram
+        MatND hist;
+        calcHist(&frameGistogram, 1, 0, Mat(), hist, 1, &histSize, ranges, true, false);
+
+//        // Show the calculated histogram in command window
+//        double total;
+//        total = frameGistogram.rows * frameGistogram.cols;
+//        for (int h = 0; h < histSize; h++) {
+//            float binVal = hist.at<float>(h);
+//            cout << " " << binVal;
+//        }
+
+        // Plot the histogram
+        int hist_w = 512;
+        int hist_h = 400;
+        int bin_w = cvRound((double) hist_w / histSize);
+
+        Mat histImage(hist_h, hist_w, CV_8UC1, Scalar(0, 0, 0));
+        normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+
+        for (int i = 1; i < histSize; i++) {
+            line(histImage, Point(bin_w * (i - 1), hist_h - cvRound(hist.at<float>(i - 1))),
+                    Point(bin_w * (i), hist_h - cvRound(hist.at<float>(i))),
+                    Scalar(255, 0, 0), 2, 8, 0);
+        }
 
         char c = cvWaitKey(33);
         switch (c) {
@@ -72,15 +94,15 @@ int main(int, char**) {
                 curs++;
                 break;
         }
+
+        namedWindow("Result", 1);
+        imshow("Result", histImage);
+
     }
-
-    //Очищаем ресурсы
-    cvDestroyAllWindows();
-
     return 0;
 }
 
-void BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int n, int curs) {
+IplImage * BrezenhemPainLines(Mat frameGistogram, int x0, int y0, int x1, int y1, int n, int curs) {
     int x, y, color = 1;
     // x = 640 y = 480
 
@@ -103,7 +125,6 @@ void BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int
         int f = 0;
 
         frameGistogram.at<unsigned char>(y0, x0) = color;
-
         x = x0, y = y0;
         if (sign == -1) {
             do {
@@ -130,4 +151,10 @@ void BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int
         x1 += 160;
         color = 0;
     }
+
+
+    IplImage ipltemp = frameGistogram;
+    IplImage* image2 = cvCreateImage(cvSize(640, 480), 8, 1);
+
+    return image2;
 }
