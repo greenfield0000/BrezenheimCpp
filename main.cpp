@@ -11,7 +11,7 @@
 using namespace cv;
 using namespace std;
 
-Mat BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs);
+vector<unsigned char> BrezenhemPainLines(Mat &edges, int x0, int y0, int x1, int y1, int n, int curs);
 void show_vector(vector<unsigned char>&colorVector);
 
 int main(int, char**) {
@@ -19,8 +19,8 @@ int main(int, char**) {
     bool isRun = TRUE;
     //кол-во ячеек
     int numBins = 256;
-    float range[] = {0, 255};
-    float *ranges[] = {range};
+    unsigned char range[] = {0, 255};
+    unsigned char *ranges[] = {range};
     bool uniform = true;
     // запрет очищения перед вычислением гистограммы 
     bool accumulate = false;
@@ -41,42 +41,19 @@ int main(int, char**) {
         frameGistogram = frame.clone();
         cvtColor(frameGistogram, frameGistogram, COLOR_BGR2GRAY);
 
-        Mat colorUnderLine = BrezenhemPainLines(frameGistogram, 0, 0, 160, 479, n, curs);
+        vector<unsigned char> colorUnderLine = BrezenhemPainLines(frameGistogram, 0, 0, 160, 479, n, curs);
         namedWindow("Gray", 1);
         imshow("Gray", frameGistogram);
 
-        // Initialize parameters
-        int histSize = 256; // bin size
-        float range[] = {0, 255};
-        const float *ranges[] = {range};
-
-        // Calculate histogram
-        MatND hist;
-        calcHist(&frameGistogram, 1, 0, Mat(), hist, 1, &histSize, ranges, true, false);
-
-        //        // Show the calculated histogram in command window
-        //        double total;
-        //        total = frameGistogram.rows * frameGistogram.cols;
-        //        for (int h = 0; h < histSize; h++) {
-        //            float binVal = hist.at<float>(h);
-        //            cout << " " << binVal;
-        //        }
-
-        // Plot the histogram
-        int hist_w = 512;
-        int hist_h = 400;
-        int bin_w = cvRound((double) hist_w / histSize);
-
-        Mat histImage(hist_h, hist_w, CV_8UC1, Scalar(0, 0, 0));
-        normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
-
-        for (int i = 1; i < histSize; i++) {
-            line(histImage, Point(bin_w * (i - 1), hist_h - cvRound(hist.at<float>(i - 1))),
-                    Point(bin_w * (i), hist_h - cvRound(hist.at<float>(i))),
-                    Scalar(255, 0, 0), 2, 8, 0);
+        Mat img(300, colorUnderLine.size(), CV_8SC4);
+        line(img, Point(0, 299), Point(colorUnderLine.size() - 1, 299), Scalar(255, 0, 0, 255), 3);
+        for (int i = 0; i < (colorUnderLine.size() - 1); i++) {
+            line(img, Point(i, 255 - colorUnderLine[i]), Point(i + 1, 255 - colorUnderLine[i + 1]), Scalar(255), 1);
         }
 
-        char c = cvWaitKey(33);
+        imshow("MYWINDOW", img);
+
+        unsigned char c = cvWaitKey(100);
         switch (c) {
                 // escape    
             case 27:
@@ -85,29 +62,19 @@ int main(int, char**) {
                 // left    
             case 81:
                 if (curs == 0) {
-                    curs = n;
+                    curs = (n - 1);
                 }
                 curs--;
                 break;
-                // right
-            case 83:
-                if (curs == (n - 1)) {
-                    curs = -1; // жесткий костыль :) 
-                }
-                curs++;
-                break;
         }
-
-        namedWindow("Result", 1);
-        imshow("Result", histImage);
 
     }
     return 0;
 }
 
-Mat BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int n, int curs) {
+vector<unsigned char> BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int n, int curs) {
     int x, y, color = 1, i = 0;
-    vector<unsigned char> colorVector(sizeof frameGistogram);
+    vector<unsigned char> colorVector(256);
 
     for (int i = 0; i < n - 1; i++) {
         if (curs == i) color = 255;
@@ -127,7 +94,9 @@ Mat BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int 
 
         int f = 0;
 
-        colorVector.push_back(frameGistogram.at<unsigned char>(y0, x0));
+        if (color == 255) {
+            colorVector.push_back((unsigned char) frameGistogram.at<unsigned char>(y0, x1));
+        }
         frameGistogram.at<unsigned char>(y0, x0) = color;
         x = x0, y = y0;
         if (sign == -1) {
@@ -138,7 +107,9 @@ Mat BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int 
                     y += signa;
                 }
                 x -= signb;
-                colorVector.push_back(frameGistogram.at<unsigned char>(y, x));
+                if (color == 255) {
+                    colorVector.push_back((unsigned char) frameGistogram.at<unsigned char>(y, x));
+                }
                 frameGistogram.at<unsigned char>(y, x) = color;
             } while (x != x1 || y != y1);
         } else {
@@ -149,7 +120,9 @@ Mat BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int 
                     x -= signb;
                 }
                 y += signa;
-                colorVector.push_back(frameGistogram.at<unsigned char>(y, x));
+                if (color == 255) {
+                    colorVector.push_back((unsigned char) frameGistogram.at<unsigned char>(y, x));
+                }
                 frameGistogram.at<unsigned char>(y, x) = color;
             } while (x != x1 || y != y1);
         }
@@ -160,9 +133,8 @@ Mat BrezenhemPainLines(Mat &frameGistogram, int x0, int y0, int x1, int y1, int 
 
     //    show_vector(colorVector);
 
-    Mat A = Mat(1, colorVector.size(), CV_32FC1, &colorVector);
 
-    return A;
+    return colorVector;
 }
 
 void show_vector(vector<unsigned char>&a) {
